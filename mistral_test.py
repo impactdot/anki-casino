@@ -4,7 +4,8 @@ from datetime import datetime
 from mistralai import Mistral  # Ensure this import is correct based on your Mistral package
 
 def generate_flashcards():
-    flashcards = []
+    # Initialize variables
+    data = {}
     
     # Collect user input
     topic = input("Enter the topic of the flashcards: ").strip()
@@ -20,7 +21,7 @@ def generate_flashcards():
     api_key = "wjJKh2KEYQ7ALYbrbbFnDspPpxLxfYsT"
     if not api_key:
         print("Error: API key not found. Please set the MISTRAL_API_KEY environment variable.")
-        return flashcards
+        return data
     
     model = "mistral-large-latest"
     
@@ -29,15 +30,17 @@ def generate_flashcards():
         client = Mistral(api_key=api_key)
     except Exception as e:
         print(f"Failed to initialize Mistral client: {e}")
-        return flashcards
+        return data
     
-    # Craft the prompt to request JSON-formatted flashcards
+    # Craft the prompt to request theory information and JSON-formatted flashcards
     prompt = (
-        f"You are a flashcard generator. Create {number} flashcards on the topic '{topic}'. "
-        "Return the flashcards as a JSON array where each flashcard has 'front' and 'back' fields. "
+        f"You are a flashcard generator. First, provide concise theory information about the topic '{topic}' that would help with understanding the flashcards. "
+        f"Then, create {number} flashcards on the topic. "
+        "Return the theory information and the flashcards as a JSON object, where the 'theory' field contains"
+        "information that students would need to read in order to be able to solve the flashcards"
+        "and the 'flashcards' field contains an array of flashcards, each with 'front' and 'back' fields. "
         "Do not include any markdown or code block formatting in your response."
     )
-
     
     # Make the API call
     try:
@@ -52,7 +55,7 @@ def generate_flashcards():
         )
     except Exception as e:
         print(f"API call failed: {e}")
-        return flashcards
+        return data
     
     # Extract the response content
     try:
@@ -60,33 +63,40 @@ def generate_flashcards():
     except (AttributeError, IndexError) as e:
         print(f"Unexpected API response structure: {e}")
         print("Full response:", chat_response)
-        return flashcards
+        return data
     
     # Attempt to parse the response as JSON
     try:
         flashcard_data = json.loads(response_content)
         
-        # Validate that the response is a list of dictionaries
-        if isinstance(flashcard_data, list):
-            for idx, card in enumerate(flashcard_data, start=1):
-                front = card.get('front')
-                back = card.get('back')
-                if front and back:
-                    flashcards.append({'front': front, 'back': back})
-                else:
-                    print(f"Warning: Flashcard {idx} is missing 'front' or 'back' field.")
+        if isinstance(flashcard_data, dict):
+            theory = flashcard_data.get('theory')
+            flashcards_list = flashcard_data.get('flashcards')
+            if theory and isinstance(flashcards_list, list):
+                flashcards = []
+                for idx, card in enumerate(flashcards_list, start=1):
+                    front = card.get('front')
+                    back = card.get('back')
+                    if front and back:
+                        flashcards.append({'front': front, 'back': back})
+                    else:
+                        print(f"Warning: Flashcard {idx} is missing 'front' or 'back' field.")
+                # Store the theory information and the flashcards
+                data = {'theory': theory, 'flashcards': flashcards}
+            else:
+                print("Error: The response JSON does not contain 'theory' or 'flashcards' properly.")
         else:
-            print("Error: The response JSON is not a list.")
+            print("Error: The response JSON is not a dictionary.")
     except json.JSONDecodeError:
         print("Error: Failed to parse the response as JSON.")
         print("Response content:", response_content)
         # Optionally, implement alternative parsing here if JSON fails
     
-    return flashcards
+    return data
 
-def save_flashcards_to_file(flashcards):
-    if not flashcards:
-        print("No flashcards to save.")
+def save_flashcards_to_file(data):
+    if not data:
+        print("No data to save.")
         return
     
     # Get current date and time for filename
@@ -95,18 +105,14 @@ def save_flashcards_to_file(flashcards):
     filename = f"flashcards_{timestamp}.json"
     filepath = os.path.join(os.getcwd(), filename)  # Saves to the current working directory
     
-    # Save flashcards to JSON file
+    # Save data to JSON file
     try:
         with open(filepath, 'w', encoding='utf-8') as f:
-            json.dump(flashcards, f, ensure_ascii=False, indent=4)
+            json.dump(data, f, ensure_ascii=False, indent=4)
         print(f"Flashcards have been successfully saved to '{filepath}'.")
     except Exception as e:
         print(f"Failed to save flashcards to file: {e}")
 
 if __name__ == "__main__":
-    flashcards = generate_flashcards()
-    save_flashcards_to_file(flashcards)
-
-
-
-
+    data = generate_flashcards()
+    save_flashcards_to_file(data)
