@@ -3,20 +3,9 @@ import json
 from datetime import datetime
 from mistralai import Mistral  # Ensure this import is correct based on your Mistral package
 
-def generate_flashcards():
+def generate_flashcards(topic,number):
     # Initialize variables
     data = {}
-    
-    # Collect user input
-    topic = input("Enter the topic of the flashcards: ").strip()
-    while True:
-        number_input = input("Enter the number of flashcards you want to generate: ").strip()
-        if number_input.isdigit() and int(number_input) > 0:
-            number = int(number_input)
-            break
-        else:
-            print("Please enter a valid positive integer for the number of flashcards.")
-    
     # Retrieve API key from environment variable for security
     api_key = "wjJKh2KEYQ7ALYbrbbFnDspPpxLxfYsT"
     if not api_key:
@@ -113,6 +102,8 @@ def save_flashcards_to_file(data):
     except Exception as e:
         print(f"Failed to save flashcards to file: {e}")
 
-if __name__ == "__main__":
-    data = generate_flashcards()
+def flashcards(topic, number):
+    data = generate_flashcards(topic,number)
     save_flashcards_to_file(data)
+
+
