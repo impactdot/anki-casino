@@ -1,9 +1,16 @@
+from flask import Flask, request, jsonify
+from werkzeug.middleware.proxy_fix import ProxyFix
 import os
 import json
 from datetime import datetime
 from mistralai import Mistral  # Ensure this import is correct based on your Mistral package
 
-def generate_flashcards(topic,number):
+app = Flask(__name__)
+
+# Apply ProxyFix middleware to fix 403 Forbidden error when accessed via ngrok
+app.wsgi_app = ProxyFix(app.wsgi_app, x_host=1)
+
+def generate_flashcards(topic, number):
     # Initialize variables
     data = {}
     # Retrieve API key from environment variable for security
@@ -25,8 +32,8 @@ def generate_flashcards(topic,number):
     prompt = (
         f"You are a flashcard generator. First, provide concise theory information about the topic '{topic}' that would help with understanding the flashcards. "
         f"Then, create {number} flashcards on the topic. "
-        "Return the theory information and the flashcards as a JSON object, where the 'theory' field contains"
-        "information that students would need to read in order to be able to solve the flashcards"
+        "Return the theory information and the flashcards as a JSON object, where the 'theory' field contains "
+        "information that students would need to read in order to be able to solve the flashcards "
         "and the 'flashcards' field contains an array of flashcards, each with 'front' and 'back' fields. "
         "Do not include any markdown or code block formatting in your response."
     )
@@ -102,8 +109,29 @@ def save_flashcards_to_file(data):
     except Exception as e:
         print(f"Failed to save flashcards to file: {e}")
 
-def flashcards(topic, number):
-    data = generate_flashcards(topic,number)
-    save_flashcards_to_file(data)
+@app.route('/flashcards', methods=['POST'])
+def flashcards_api():
+    try:
+        data = request.get_json()
+        topic = data.get('topic')
+        number = data.get('number')
+    
+        if not topic or not number:
+            return jsonify({'error': 'Please provide both "topic" and "number" in the request body.'}), 400
+    
+        flashcards_data = generate_flashcards(topic, number)
+        if not flashcards_data:
+            return jsonify({'error': 'Failed to generate flashcards.'}), 500
+
+        save_flashcards_to_file(flashcards_data)
+        return jsonify(flashcards_data), 200
+    except Exception as e:
+        # Log the exception details
+        import traceback
+        traceback.print_exc()
+        # Return a JSON error response
+        return jsonify({'error': 'Internal Server Error', 'message': str(e)}), 500
 
 
+if __name__ == '__main__':
+    app.run(port=5002, debug=True)
