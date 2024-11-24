@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useTonConnectUI } from "@tonconnect/ui-react";
 import { Address } from "@ton/core";
 import { useRouter } from "next/navigation";
+import { Button } from "./components/ui/Button";
 
 export default function Home() {
   const router = useRouter();
@@ -25,7 +26,8 @@ export default function Home() {
     setTonWalletAddress(null);
     console.log("Wallet disconnected successfully!");
     setIsLoading(false);
-  }, []);
+    router.push("/");
+  }, [router]);
 
   useEffect(() => {
     const checkWalletConnection = async () => {
@@ -65,6 +67,10 @@ export default function Home() {
     return `${tempAddress.slice(0, 4)}...${tempAddress.slice(-4)}`;
   };
 
+  const handleProfileClick = () => {
+    router.push("/profile");
+  };
+
   if (isLoading) {
     return (
       <main className="flex min-h-screen flex-col items-center justify-center">
@@ -75,36 +81,15 @@ export default function Home() {
     );
   }
 
-  //   return (
-  //     <main className="flex min-h-screen flex-col items-center justify-center">
-  //       <h1 className="text-4xl font-bold mb-8">TON Connect Demo</h1>
-  //       {tonWalletAddress ? (
-  //         <div className="flex flex-col items-center">
-  //           <p className="mb-4">Connected: {formatAddress(tonWalletAddress)}</p>
-  //           <button
-  //             onClick={handleWalletAction}
-  //             className="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded"
-  //           >
-  //             Disconnect Wallet
-  //           </button>
-  //         </div>
-  //       ) : (
-  //         <button
-  //           onClick={handleWalletAction}
-  //           className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
-  //         >
-  //           Connect TON Wallet
-  //         </button>
-  //       )}
-  //     </main>
-  //   );
   return (
     <main className="flex min-h-screen flex-col items-center justify-center">
       <h1 className="text-4xl font-bold mb-8">TON Connect Demo</h1>
       {tonWalletAddress ? (
-        <div className="flex flex-col items-center">
-          <p className="mb-4">Connected: {formatAddress(tonWalletAddress)}</p>
-          <Button onClick={handleWalletAction} variant="destructive">
+        <div className="flex flex-col items-center gap-4">
+          <Button onClick={handleProfileClick} variant="secondary">
+            {formatAddress(tonWalletAddress)}
+          </Button>
+          <Button onClick={handleWalletAction} variant="danger">
             Disconnect Wallet
           </Button>
         </div>

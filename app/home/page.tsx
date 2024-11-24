@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Stakes } from "../components/Stakes";
-import WalletHeader from "../components/WalletHeader";
+import { WalletHeader } from "../components/WalletHeader";
 
 export default function Home() {
   const [topic, setTopic] = useState("");

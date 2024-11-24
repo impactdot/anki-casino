@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useTonConnectUI } from "@tonconnect/ui-react";
 import { Input } from "./ui/Input";
 import { Button } from "./ui/Button";
+import { useRouter } from "next/navigation";
 
 interface StakesProps {
   topic: string;
@@ -37,6 +38,7 @@ export function Stakes({
   const [error, setError] = useState<string | null>(null);
   const [file, setFile] = useState<File | null>(null);
   const [inputMethod, setInputMethod] = useState<"text" | "file">("text");
+  const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -47,37 +49,59 @@ export function Stakes({
       let response;
 
       if (inputMethod === "text") {
-        response = await fetch("http://localhost:5002/flashcards", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            topic: topic,
-            number: parseInt(numCards),
-          }),
-        });
+        response = await fetch(
+          "https://lemming-quiet-fairly.ngrok-free.app/flashcards",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              topic: topic,
+              number: numCards,
+            }),
+          }
+        );
       } else {
         const formData = new FormData();
         if (file) {
           formData.append("file", file);
           formData.append("number", numCards);
 
-          response = await fetch("http://localhost:5002/flashcards", {
-            method: "POST",
-            body: formData,
-          });
+          response = await fetch(
+            "https://lemming-quiet-fairly.ngrok-free.app/flashcards",
+            {
+              method: "POST",
+              body: formData,
+            }
+          );
         } else {
           throw new Error("No file selected");
         }
       }
 
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        const errorData = await response.json();
+        throw new Error(
+          errorData.error || `HTTP error! status: ${response.status}`
+        );
       }
 
       const data: FlashcardsResponse = await response.json();
+
+      console.log("Server Response:", {
+        theory: data.theory,
+        flashcards: data.flashcards.map((card, index) => ({
+          card: index + 1,
+          front: card.front,
+          back: card.back,
+        })),
+      });
+
+      localStorage.setItem("flashcards_data", JSON.stringify(data));
+      localStorage.setItem("stake_amount", tonAmount);
       onSubmit(e);
+      router.push(`/theory?topic=${encodeURIComponent(topic)}`);
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "Failed to generate flashcards"
@@ -134,6 +158,7 @@ export function Stakes({
           min="1"
           max="20"
           label="Number of Questions"
+          className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
         />
         <Input
           type="number"
@@ -143,6 +168,7 @@ export function Stakes({
           min="0.1"
           step="0.1"
           label="Learning Stake (TON)"
+          className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
         />
 
         <Button
