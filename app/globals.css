@@ -1,0 +1,57 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+  --primary: #3b82f6;
+  --primary-foreground: #ffffff;
+  --secondary: #f3f4f6;
+  --secondary-foreground: #1f2937;
+  --accent: #60a5fa;
+  --accent-foreground: #ffffff;
+  --input-background: #ffffff;
+  --input-foreground: #171717;
+  --input-border: #e5e7eb;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+    --primary: #60a5fa;
+    --primary-foreground: #ffffff;
+    --secondary: #1f2937;
+    --secondary-foreground: #f3f4f6;
+    --accent: #3b82f6;
+    --accent-foreground: #ffffff;
+    --input-background: #1f2937;
+    --input-foreground: #ededed;
+    --input-border: #374151;
+  }
+}
+
+body {
+  color: var(--foreground);
+  background: var(--background);
+  font-family: "Inter", sans-serif;
+}
+
+/* Add styles for input fields */
+input {
+  background-color: var(--input-background);
+  color: var(--input-foreground);
+  border-color: var(--input-border);
+}
+
+input::placeholder {
+  color: var(--input-foreground);
+  opacity: 0.5;
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}
