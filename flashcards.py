@@ -2,6 +2,7 @@ from flask import Flask, request, jsonify
 from werkzeug.middleware.proxy_fix import ProxyFix
 import os
 import json
+import glob
 from datetime import datetime
 from mistralai import Mistral  # Ensure this import is correct based on your Mistral package
 import PyPDF2  # Added import for PDF reading
@@ -36,6 +37,7 @@ def generate_flashcards(topic, number):
         "Return the theory information and the flashcards as a JSON object, where the 'theory' field contains "
         "information that students would need to read in order to be able to solve the flashcards "
         "and the 'flashcards' field contains an array of flashcards, each with 'front' and 'back' fields. "
+        "Output all mathematics in LaTeX format."
         "INSANELY IMPORTANT: Do not include any markdown or code block formatting in your response and double check that you are outputting a JSON ONLY as it will get parsed into a JSON file"
     )
 
@@ -144,6 +146,101 @@ def flashcards_api():
         import traceback
         traceback.print_exc()
         # Return a JSON error response
+        return jsonify({'error': 'Internal Server Error', 'message': str(e)}), 500
+
+@app.route('/evaluate_answers', methods=['POST'])
+def evaluate_answers():
+    try:
+        # Get user's answers from the request
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': 'No JSON data provided.'}), 400
+        answers = data.get('answers')
+        if not answers:
+            return jsonify({'error': 'Please provide "answers" in the request body.'}), 400
+
+        # Read the latest flashcards JSON file
+        import glob
+        list_of_files = glob.glob('flashcards_*.json')
+        if not list_of_files:
+            return jsonify({'error': 'No flashcards file found.'}), 500
+        latest_file = max(list_of_files, key=os.path.getctime)
+        with open(latest_file, 'r') as f:
+            flashcards_data = json.load(f)
+
+        flashcards = flashcards_data.get('flashcards')
+        if not flashcards:
+            return jsonify({'error': 'No flashcards found in the file.'}), 500
+
+        # Prepare the prompt for Mistral
+        prompt = "You are an assistant that evaluates user's answers to flashcards.\n"
+        prompt += "Here are the flashcards with their correct answers:\n\n"
+
+        for idx, flashcard in enumerate(flashcards, start=1):
+            prompt += f"{idx}. Question: {flashcard['front']}\n"
+            prompt += f"   Answer: {flashcard['back']}\n\n"
+
+        prompt += "The user has provided the following answers:\n\n"
+
+        for key, user_answer in answers.items():
+            prompt += f"{key}. {user_answer}\n\n"
+
+        prompt += (
+            "For each question, evaluate the user's answer compared to the correct answer. "
+            "Provide feedback on the correctness, and assign a score out of 10 for each answer. "
+            "Return the evaluation as a JSON object with the question number as the key, and the evaluation as the value.\n\n"
+            "Output all mathematics in LaTeX format."
+            "INSANELY IMPORTANT: Do not include any markdown or code block formatting in your response and double check that you are outputting a JSON ONLY as it will get parsed into a JSON file"
+        )
+
+        # Initialize Mistral client
+        api_key = "wjJKh2KEYQ7ALYbrbbFnDspPpxLxfYsT"
+        model = "mistral-large-latest"
+
+        try:
+            client = Mistral(api_key=api_key)
+        except Exception as e:
+            print(f"Failed to initialize Mistral client: {e}")
+            return jsonify({'error': 'Failed to initialize Mistral client.'}), 500
+
+        # Make the API call
+        try:
+            chat_response = client.chat.complete(
+                model=model,
+                messages=[
+                    {
+                        "role": "user",
+                        "content": prompt,
+                    },
+                ]
+            )
+        except Exception as e:
+            print(f"API call failed: {e}")
+            return jsonify({'error': 'Failed to get response from Mistral API.'}), 500
+
+        # Extract the response content
+        try:
+            response_content = chat_response.choices[0].message.content.strip()
+        except (AttributeError, IndexError) as e:
+            print(f"Unexpected API response structure: {e}")
+            print("Full response:", chat_response)
+            return jsonify({'error': 'Unexpected API response structure.'}), 500
+
+        # Parse the response as JSON
+        try:
+            evaluation = json.loads(response_content)
+        except json.JSONDecodeError:
+            print("Error: Failed to parse the response as JSON.")
+            print("Response content:", response_content)
+            return jsonify({'error': 'Failed to parse the response as JSON.'}), 500
+
+        # Return the evaluation to the user
+        return jsonify(evaluation), 200
+
+    except Exception as e:
+        # Log the exception details
+        import traceback
+        traceback.print_exc()
         return jsonify({'error': 'Internal Server Error', 'message': str(e)}), 500
 
 if __name__ == '__main__':
